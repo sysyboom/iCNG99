@@ -64,9 +64,9 @@
    resultss = find(res.sol.int.xx(size(s,2)+1:end));
    currentFile=sprintf('ggtrans%d.mat',j)
    save(currentFile,'resultss')
-
-%%params = readtable('/mnt/NFS/fengch/new/transport_matlab_new.csv')
-%%for j = 29:39
-%%newex = params.Var1(j);
-%%newbiomass = params.Var2(j);
-%%disp(newex)
+%%Alter batch parameter%%
+%params = readtable('/mnt/NFS/fengch/new/transport_matlab_new.csv')
+%for j = 29:39
+%newex = params.Var1(j);
+%newbiomass = params.Var2(j);
+%disp(newex)
