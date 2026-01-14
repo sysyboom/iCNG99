@@ -9,7 +9,6 @@ def calculate_aa_composition(fasta_file):
             line = line.strip()
             if line.startswith('>'):
                 if current_sequence:
-                    # Process the previous sequence
                     for aa in current_sequence:
                         aa_counts[aa] = aa_counts.get(aa, 0) + 1
                         total_aa_count += 1
@@ -17,7 +16,6 @@ def calculate_aa_composition(fasta_file):
             else:
                 current_sequence += line
 
-        # Process the last sequence
         for aa in current_sequence:
             aa_counts[aa] = aa_counts.get(aa, 0) + 1
             total_aa_count += 1
