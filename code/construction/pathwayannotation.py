@@ -14,7 +14,7 @@ def get_pathway_name(pathway_id):
                 _, pathway_name = line.split(" ", 1)
                 return pathway_name.strip()
 
-    return "无法找到通路名称"
+    return "can't find"
 
 
 def get_pathway_by_reaction(reaction_id):
@@ -35,17 +35,14 @@ def get_pathway_by_reaction(reaction_id):
         return None
 
 
-# 读取输入的 .xls 文件
-input_file = "/mnt/NFS/fengch/new/gapfill/pathwayanno.xls"  # 替换为你的输入文件路径
+input_file = "/mnt/NFS/fengch/new/gapfill/pathwayanno.xls" 
 workbook = xlrd.open_workbook(input_file)
 sheet = workbook.sheet_by_index(0)
 
-# 创建输出的 .xls 文件
-output_file = "/mnt/NFS/fengch/new/gapfill/res.xls"  # 替换为你的输出文件路径
+output_file = "/mnt/NFS/fengch/new/gapfill/res.xls"  
 output_workbook = xlwt.Workbook()
 output_sheet = output_workbook.add_sheet("Output")
 
-# 遍历每一行，获取反应ID并查询通路信息
 for row in range(sheet.nrows):
     reaction_id = sheet.cell_value(row, 0)
     pathways = get_pathway_by_reaction(reaction_id)
@@ -55,9 +52,7 @@ for row in range(sheet.nrows):
         output_sheet.write(row, 1, pathway_str)
     else:
         output_sheet.write(row, 0, reaction_id)
-        output_sheet.write(row, 1, "无法找到通路信息")
+        output_sheet.write(row, 1, "can't find")
 
-# 保存输出的 .xls 文件
 output_workbook.save(output_file)
-
-print("输出文件已保存成功。")
+print("done")
