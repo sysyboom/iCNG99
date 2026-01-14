@@ -1,9 +1,4 @@
-############################################################
-## 用 CNAG_GO.tsv + 外部 GO 描述文件 做 FN（0/1）GO 富集 + 直接在右侧画图
-############################################################
-## 依赖（如未安装）：
-## BiocManager::install(c("clusterProfiler","enrichplot"))
-## install.packages(c("readr","readxl","dplyr","tidyr","ggplot2"))
+
 
 library(readr)
 library(readxl)
@@ -13,14 +8,11 @@ library(clusterProfiler)
 library(enrichplot)
 library(ggplot2)
 
-## ========== 1) 路径（按需修改） ==========
-map_file     <- "/data/CNAG_GO.tsv"                      # 至少含 Gene_ID, GO_ID
-go_desc_file <- "/data/GO_basic_Description.txt"         # 三列：Class, GO_IDs, Description
+map_file     <- "/data/CNAG_GO.tsv"                      
+go_desc_file <- "/data/GO_basic_Description.txt"        
 status_file  <- "/data/new/models/paper/gene_essentiality_comparison.xlsx"
 out_prefix   <- "/data/new/FN_from_CNAG_GO_desc"
-## =========================================
 
-## ========== 2) 读取映射与描述 ==========
 cnag_go <- readr::read_delim(map_file, delim = "\t", col_types = cols(.default = col_character())) |>
   dplyr::rename_with(~gsub("\\s+", "_", .x)) |>
   dplyr::rename(
@@ -41,7 +33,6 @@ go_desc <- readr::read_delim(go_desc_file, delim = "\t", col_types = cols(.defau
   dplyr::filter(Class %in% c("BP","MF","CC"), grepl("^GO:\\d+$", GO)) |>
   dplyr::distinct(GO, Class, Description)
 
-## ========== 3) 背景与 FN ==========
 status <- readxl::read_excel(status_file)
 stopifnot(all(c("Gene_ID","model_predicted","experimental_essential") %in% names(status)))
 
@@ -53,10 +44,9 @@ fn_genes <- status |>
   unique() |>
   intersect(bg_genes)
 
-cat("背景基因数:", length(bg_genes), "\n")
-cat("FN 基因数(用于富集):", length(fn_genes), "\n")
+cat("background genes:", length(bg_genes), "\n")
+cat("FN genes:", length(fn_genes), "\n")
 
-## ========== 4) TERM2GENE / TERM2NAME ==========
 make_t2g <- function(onto = c("BP","MF","CC")) {
   onto <- match.arg(onto)
   t2g <- cnag_go |>
@@ -89,7 +79,6 @@ t2g_bp <- make_t2g("BP"); ego_bp <- run_enrich(t2g_bp, fn_genes, bg_genes)
 t2g_mf <- make_t2g("MF"); ego_mf <- run_enrich(t2g_mf, fn_genes, bg_genes)
 t2g_cc <- make_t2g("CC"); ego_cc <- run_enrich(t2g_cc, fn_genes, bg_genes)
 
-## ========== 5) 合并结果 & 直接“右侧画图” ==========
 as_df_with_class <- function(ego, cls) {
   if (is.null(ego)) return(NULL)
   df <- as.data.frame(ego)
@@ -98,7 +87,6 @@ as_df_with_class <- function(ego, cls) {
   df
 }
 
-# 合并总表（有哪个类为空就跳过）
 df_all <- list(
   as_df_with_class(ego_bp, "BP"),
   as_df_with_class(ego_mf, "MF"),
@@ -110,17 +98,13 @@ if (length(df_all)) {
   write.csv(all_res, paste0(out_prefix, "_GO_merged.csv"), row.names = FALSE)
 }
 
-# 单表 CSV（非空才写）
 if (!is.null(ego_bp) && nrow(as.data.frame(ego_bp))) write.csv(as.data.frame(ego_bp), paste0(out_prefix, "_GO_BP.csv"), row.names = FALSE)
 if (!is.null(ego_mf) && nrow(as.data.frame(ego_mf))) write.csv(as.data.frame(ego_mf), paste0(out_prefix, "_GO_MF.csv"), row.names = FALSE)
 if (!is.null(ego_cc) && nrow(as.data.frame(ego_cc))) write.csv(as.data.frame(ego_cc), paste0(out_prefix, "_GO_CC.csv"), row.names = FALSE)
 
-# —— 直接在右侧 Plots 面板画图（不保存文件）——
-# 颜色：p.adjust 大（不太显著）= 亮黄 (#F9C74F)
-#       p.adjust 小（显著）     = 深蓝 (#577590)
 plot_dot <- function(ego, title = NULL, topn = 20) {
   if (is.null(ego) || !nrow(as.data.frame(ego))) {
-    message("无显著项：", if (is.null(title)) "" else title)
+    message("no notable", if (is.null(title)) "" else title)
     return(invisible(NULL))
   }
   the_title <- if (is.null(title)) "" else title
@@ -133,28 +117,25 @@ plot_dot <- function(ego, title = NULL, topn = 20) {
       plot.title  = ggplot2::element_text(face = "bold")
     ) +
     ggplot2::scale_color_gradient(
-      low  = "#F9844A",  # p.adjust 大
-      high = "#43AA8B",  # p.adjust 小
+      low  = "#F9844A", 
+      high = "#43AA8B",  
       name = "p.adjust"
     )
   
-  print(p)  # 让图出现在右侧 Plots 面板
+  print(p)  
 }
 
 plot_dot(ego_bp, "GO Biological Process (FN genes)", topn = 20)
 plot_dot(ego_mf, "GO Molecular Function (FN)", topn = 20)
 #plot_dot(ego_cc, "GO Cellular Component (FN)", topn = 20)
 
-## ========== 6) 覆盖率诊断（可选） ==========
 cover_stat <- function(onto) {
   t2g <- make_t2g(onto)
   if (is.null(t2g) || nrow(t2g$term2gene) == 0L) {
-    cat(sprintf("[%s] 无可用注释\n", onto)); return(invisible(NULL))
+    cat(sprintf("[%s] no useful annotation\n", onto)); return(invisible(NULL))
   }
   bg_cov <- length(intersect(bg_genes, unique(t2g$term2gene$Gene)))
   fn_cov <- length(intersect(fn_genes, unique(t2g$term2gene$Gene)))
-  cat(sprintf("[%s] 背景覆盖基因数=%d, FN覆盖基因数=%d\n", onto, bg_cov, fn_cov))
+  cat(sprintf("[%s] banckground genes overlap=%d, FN genes overlap=%d\n", onto, bg_cov, fn_cov))
 }
 cover_stat("BP"); cover_stat("MF"); cover_stat("CC")
-
-cat("完成。CSV 已输出；图已在右侧 Plots 面板显示（无显著项则不会出图）。\n")
