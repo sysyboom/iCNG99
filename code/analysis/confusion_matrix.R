@@ -1,19 +1,13 @@
-# ======================================
-# 🌿 Essential Gene Prediction Evaluation (Refined Natural Green Edition)
-# ======================================
-
 library(readxl)
 library(dplyr)
 library(caret)
 library(ggplot2)
 library(VennDiagram)
 
-# ========== 1️⃣ Read data ==========
 df <- read_excel("/data/new/models/paper/gene_essentiality_comparison.xlsx")
 df$model_predicted <- factor(df$model_predicted, levels = c(0,1))
 df$experimental_essential <- factor(df$experimental_essential, levels = c(0,1))
 
-# ========== 2️⃣ Confusion matrix ==========
 cm <- confusionMatrix(df$model_predicted, df$experimental_essential, positive = "1")
 
 TP <- as.numeric(cm$table[2,2])
@@ -30,7 +24,6 @@ cm_df$Percent <- round(cm_df$Count / sum(cm_df$Count) * 100, 1)
 cm_df$Label <- c("TN", "FN", "FP", "TP")[c(1,3,2,4)]
 cm_df$Display <- paste0(cm_df$Label, "\n", cm_df$Count, " (", cm_df$Percent, "%)")
 
-# ========== 3️⃣ Confusion Matrix Plot (Elegant Green) ==========
 p1 <- ggplot(cm_df, aes(x = Actual, y = Predicted, fill = Count)) +
   geom_tile(color = "white", linewidth = 1.1, radius = unit(4, "pt"),  alpha = 0.8 ) +  # rounded edges
   geom_text(aes(label = Display), size = 5.2, fontface = "bold", color = "black", lineheight = 0.9) +
@@ -56,7 +49,6 @@ p1 <- ggplot(cm_df, aes(x = Actual, y = Predicted, fill = Count)) +
   )
 print(p1)
 
-# ========== 5️⃣ Performance Metrics ==========
 TPR <- TP / (TP + FN)
 FPR <- FP / (FP + TN)
 Precision <- TP / (TP + FP)
@@ -69,12 +61,10 @@ metrics <- data.frame(
   Value = round(c(Accuracy, Precision, TPR, F1, MCC), 3)
 )
 
-# 1️⃣ 给 Precision 单独打一个标签
   metrics <- metrics %>%
   mutate(Group = ifelse(Metric == "Precision", "Precision", "Other"))
 
-# 2️⃣ 统一颜色，用透明度高亮 Precision
-bar_fill <- "#4D908E"  # 单一蓝灰色
+bar_fill <- "#4D908E"  
   
 p2 <- ggplot(metrics, aes(x = Metric, y = Value)) +
   geom_bar(
@@ -94,7 +84,7 @@ p2 <- ggplot(metrics, aes(x = Metric, y = Value)) +
   scale_y_continuous(
     limits = c(0, 1),
     breaks = seq(0, 1, by = 0.2),
-    expand = expansion(mult = c(0, 0.02))  # 顶部空白很小
+    expand = expansion(mult = c(0, 0.02))  
   ) +
   labs(
     title = "Model Essentiality Prediction Performance (YPAD)",
