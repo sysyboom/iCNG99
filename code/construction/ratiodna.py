@@ -11,7 +11,7 @@ def calculate_base_ratio(fasta_file):
             if line.startswith(">"):
                 if sequence:
                     for base in sequence:
-                        base = base.upper()  # 将碱基转换为大写
+                        base = base.upper() 
                         if base in base_counts:
                             base_counts[base] += 1
                         else:
