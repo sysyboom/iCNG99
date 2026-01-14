@@ -1,49 +1,24 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-从“基因状态表”中筛出 FN 基因（model_predicted==0 & experimental_essential==1），
-然后到 KEGG 拉取对应的蛋白 AA 序列。
-
-输入：
-- 一个 Excel/CSV/TSV/TXT 的“基因状态表”，至少包含列：
-  Gene_ID, model_predicted, experimental_essential
-  （Gene_ID 例如 CNAG_01234）
-
-流程：
-- 从状态表筛出 FN 基因 -> 对每个 CNAG 用 KEGG REST:
-    /find/genes/{CNAG}  找 entry（如 cng:CNAG_01234）
-    /get/{entry}/aaseq  拉 AA 序列
-- 输出：
-  1) FASTA：FN_kegg.faa
-  2) 日志：FN_kegg_log.csv（gene、entry、长度、失败原因等）
-依赖：requests, pandas, tqdm   （pip install requests pandas tqdm）
-"""
-
 import os
 import time
 import pandas as pd
 import requests
 from tqdm import tqdm
 
-# ---------- KEGG REST ----------
 FIND_URL = "https://rest.kegg.jp/find/genes/{query}"
 AASEQ_URL = "https://rest.kegg.jp/get/{entry}/aaseq"
 
-# ---------- ☆☆ 需要你改的参数 ☆☆ ----------
-STATUS_FILE   = "/mnt/NFS/fengch/new/models/paper/gene_essentiality_comparison.xlsx"  # 含 Gene_ID / model_predicted / experimental_essential
-SHEET_NAME    = 0          # Excel 工作表名或索引；CSV/TSV/TXT 无需改
-GENE_COL      = "Gene_ID"  # 列名：基因
+STATUS_FILE   = "/mnt/NFS/fengch/new/models/paper/gene_essentiality_comparison.xlsx"  
+SHEET_NAME    = 0          
+GENE_COL      = "Gene_ID"  
 MODEL_COL     = "model_predicted"
 EXPT_COL      = "experimental_essential"
 
-OUTPUT_FASTA  = "/mnt/NFS/fengch/new/models/paper/FN_kegg.faa"       # 输出 FASTA
-LOG_CSV       = "/mnt/NFS/fengch/PAPER/FN_kegg_log.csv"   # 日志 CSV
-SLEEP_TIME    = 0.2       # 每次请求后的休眠（秒）
+OUTPUT_FASTA  = "/mnt/NFS/fengch/new/models/paper/FN_kegg.faa"       
+LOG_CSV       = "/mnt/NFS/fengch/PAPER/FN_kegg_log.csv"   
+SLEEP_TIME    = 0.2       
 TIMEOUT       = 30
 RETRIES       = 2
 BACKOFF       = 1.6
-# -------------------------------------------
-
 
 def smart_read_table(path, sheet=None):
     ext = os.path.splitext(path)[1].lower()
@@ -51,14 +26,13 @@ def smart_read_table(path, sheet=None):
         return pd.read_excel(path, sheet_name=sheet)
     elif ext == ".csv":
         return pd.read_csv(path)
-    elif ext in [".tsv", ".txt"]:
-        # 优先尝试制表符
+    elif ext in [".tsv", ".txt"]: 
         try:
             return pd.read_csv(path, sep="\t")
         except Exception:
             return pd.read_csv(path)
     else:
-        raise ValueError(f"不支持的文件格式: {ext}")
+        raise ValueError(f"false: {ext}")
 
 
 def http_get(url, timeout=30, retries=2, backoff=1.6):
@@ -76,14 +50,10 @@ def http_get(url, timeout=30, retries=2, backoff=1.6):
         time.sleep(backoff ** i)
     if "HTTP 404" in str(last_err):
         return None
-    raise RuntimeError(f"请求失败: {url} | {last_err}")
+    raise RuntimeError(f"failure: {url} | {last_err}")
 
 
 def kegg_find_genes(cnag):
-    """
-    在 KEGG genes 里查 CNAG，返回 (最佳entry, 候选列表)。
-    最佳优先 exact 命中（左侧 org:CNAG_xxx 与查询一致），否则取第一条。
-    """
     txt = http_get(FIND_URL.format(query=cnag), timeout=TIMEOUT, retries=RETRIES, backoff=BACKOFF)
     if not txt:
         return None, []
@@ -93,7 +63,6 @@ def kegg_find_genes(cnag):
         if "\t" in ln:
             left, right = ln.split("\t", 1)
             parsed.append((left.strip(), right.strip()))
-    # exact 命中
     exact = [p for p in parsed if p[0].split(":")[-1].upper() == cnag.upper()]
     if exact:
         return exact[0][0], parsed
@@ -101,9 +70,6 @@ def kegg_find_genes(cnag):
 
 
 def kegg_get_aaseq(entry):
-    """
-    拉取 AA 序列，返回 (header, seq)。如果返回多条，这里取第一条。
-    """
     txt = http_get(AASEQ_URL.format(entry=entry), timeout=TIMEOUT, retries=RETRIES, backoff=BACKOFF)
     if not txt:
         return None, None
@@ -122,22 +88,19 @@ def write_fasta_record(fh, header, seq, width=60):
 
 
 def main():
-    # 读取状态表并筛出 FN
     df = smart_read_table(STATUS_FILE, SHEET_NAME)
     need_cols = {GENE_COL, MODEL_COL, EXPT_COL}
     if not need_cols.issubset(df.columns):
-        raise ValueError(f"输入文件缺少列：{need_cols - set(df.columns)}")
+        raise ValueError(f"lack：{need_cols - set(df.columns)}")
 
-    # 去空白、标准化
     df[GENE_COL] = df[GENE_COL].astype(str).str.strip()
     df = df.dropna(subset=[GENE_COL])
 
-    # FN：模型0 & 实验1
     fn_genes = (
         df[(df[MODEL_COL] == 0) & (df[EXPT_COL] == 1)][GENE_COL]
         .astype(str).str.strip().str.upper().dropna().unique().tolist()
     )
-    print(f"[INFO] 筛到 FN 基因 {len(fn_genes)} 个。")
+    print(f"FN: {len(fn_genes)} ")
 
     os.makedirs(os.path.dirname(os.path.abspath(OUTPUT_FASTA)) or ".", exist_ok=True)
     logs = []
@@ -174,7 +137,6 @@ def main():
             time.sleep(SLEEP_TIME)
 
     pd.DataFrame(logs).to_csv(LOG_CSV, index=False)
-    print(f"[DONE] 成功 {ok} / {len(fn_genes)}。FASTA -> {OUTPUT_FASTA}；日志 -> {LOG_CSV}")
 
 
 if __name__ == "__main__":
