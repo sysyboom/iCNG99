@@ -13,20 +13,7 @@ def export_up_down_logFC_with_padj(
     pseudocount: float = 1e-3,
     sheet_name = 0
 ):
-    """
-    Input:
-      - First column: reaction ID
-      - Remaining columns: sample values
-      - First half of sample columns: control
-      - Second half of sample columns: treatment
 
-    Output:
-      - Two Excel files with columns: reaction, value, padj
-      - value = log2FC(treatment / control)
-      - padj = BH-adjusted p-value from Welch t-test on log2(sample+pseudocount)
-    """
-
-    # ---------- read input ----------
     ext = os.path.splitext(in_file)[1].lower()
     if ext in [".xlsx", ".xls"]:
         df = pd.read_excel(in_file, sheet_name=sheet_name)
@@ -48,12 +35,10 @@ def export_up_down_logFC_with_padj(
     control = X[:, :mid]
     treat = X[:, mid:]
 
-    # ---------- log2FC ----------
     c_mean = np.nanmean(control, axis=1)
     t_mean = np.nanmean(treat, axis=1)
     log2fc = np.log2((t_mean + pseudocount) / (c_mean + pseudocount))
 
-    # ---------- p-value (Welch t-test on log scale) ----------
     control_log = np.log2(control + pseudocount)
     treat_log = np.log2(treat + pseudocount)
 
@@ -62,7 +47,6 @@ def export_up_down_logFC_with_padj(
         for i in range(X.shape[0])
     ], dtype=float)
 
-    # ---------- BH correction ----------
     ok = np.isfinite(pvals)
     padj = np.full_like(pvals, np.nan, dtype=float)
 
@@ -85,17 +69,14 @@ def export_up_down_logFC_with_padj(
         "padj": padj
     }).dropna(subset=["reaction", "value", "padj"])
 
-    # ---------- filter ----------
     res = res[res["padj"] <= float(padj_threshold)]
 
     up = res[res["value"] >= float(lfc_threshold)].sort_values("value", ascending=False)
     down = res[res["value"] <= -float(lfc_threshold)].sort_values("value", ascending=True)
 
-    # ---------- write outputs ----------
     up.to_excel(out_up_xlsx, index=False)
     down.to_excel(out_down_xlsx, index=False)
 
-    # ---------- print counts ----------
     print(f"Filtered Up-regulated reactions: {up.shape[0]}")
     print(f"Filtered Down-regulated reactions: {down.shape[0]}")
 
@@ -104,7 +85,7 @@ def export_up_down_logFC_with_padj(
 
 if __name__ == "__main__":
     export_up_down_logFC_with_padj(
-        in_file="/mnt/NFS/fengch/TPM/vivo/vivo_reactions.xlsx",     # 改成你的输入文件
+        in_file="/mnt/NFS/fengch/TPM/vivo/vivo_reactions.xlsx",    
         out_up_xlsx="/mnt/NFS/fengch/TPM/vivo/vivo585_up.xlsx",
         out_down_xlsx="/mnt/NFS/fengch/TPM/vivo/vivo585_down.xlsx",
         lfc_threshold=0.585,
