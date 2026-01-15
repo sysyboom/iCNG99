@@ -5,7 +5,7 @@ import numpy as np
 df1 = pd.read_excel('/mnt/NFS/fengch/new/location/deeploc.xlsx')
 df2 = pd.read_excel('/mnt/NFS/fengch/new/location/yloc.xlsx')
 df3 = pd.read_excel('/mnt/NFS/fengch/new/location/wolf.xlsx')
-df4 = pd.read_excel('/mnt/NFS/fengch/new/location/yloc2.xlsx')  # 新添加的Excel文件
+df4 = pd.read_excel('/mnt/NFS/fengch/new/location/yloc2.xlsx')  # 0.5
 
 final_results = {}
 
